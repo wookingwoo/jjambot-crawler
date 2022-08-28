@@ -41,8 +41,8 @@ def IsMenuCorrect(dic):
                   'dinner': ['비빔밥 (5)(6)(16)', '팽이버섯된장국 (5)(6)', '삶은달걀 (1)', '배추김치(3~4월)'],
                   'specialFood': ['백색우유(200ml) (2)', '과일젤리']}
 
-    f = open('./crawling_data/sort_menuData/{}/year_{}/month_{}/{}_menu.txt'.format("ATC", "2020", "03",
-                                                                                    "2020_03"), 'r')
+    f = open('./data/crawling_data/sort_menuData/{}/year_{}/month_{}/{}_menu.txt'.format("ATC", "2020", "03",
+                                                                                         "2020_03"), 'r')
     file_data = eval(f.read())
     f.close()
 
