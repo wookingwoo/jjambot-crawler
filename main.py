@@ -33,4 +33,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        slack_msg(f"짬봇 데이터 수집을 시작합니다.")  # 슬랙 메시지 전송
+        working_time = main()
+        slack_msg(f"짬봇 데이터 수집을 완료했습니다. (working_time: {round(working_time, 3)}sec)")  # 슬랙 메시지 전송
+
+    except Exception as e:
+        error = str(e)
+        write_all_log("\n\n\t***에러가 발생하였습니다ㅠㅠ")
+        write_all_log(error + "\n")
+
+        slack_msg("`[jjambot-crawler] 에러 발생`")  # 슬랙 메시지 전송
+        slack_msg(error + "\n")  # 슬랙 메시지 전송
