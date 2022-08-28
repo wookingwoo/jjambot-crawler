@@ -1,0 +1,1 @@
+* * * * * docker run -it -d -v /host/path/data:/jjambot-crawler/data/:/jjambot-crawler/data/ -e TZ=Asia/Seoul --name jjambot-crawler jjambot-crawler:1.0
