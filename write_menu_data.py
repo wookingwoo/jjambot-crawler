@@ -85,10 +85,9 @@ def writeMenuAsDate_TXT(dic):
             path_classify_dir_year = './data/crawling_data/sort_menuData/{}/year_{}'.format(y, z[0:4])
             path_classify_dir_month = './data/crawling_data/sort_menuData/{}/year_{}/month_{}'.format(y, z[0:4], z[4:6])
             path_classify = './data/crawling_data/sort_menuData/{}/year_{}/month_{}/{}_menu.txt'.format(y, z[0:4],
-                                                                                                        z[4:6],
-                                                                                                        z[
-                                                                                                        0:4] + "_" + z[
-                                                                                                                     4:6])
+                                                                                                        z[4:6], z[
+                                                                                                                0:4] + "_" + z[
+                                                                                                                             4:6])
 
             # 경로가 존재하지 않으면 새로 생성
             check_dir(path_classify_dir)
