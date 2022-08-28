@@ -21,4 +21,4 @@ COPY . /jjambot-crawler
 CMD ["python", "main.py"]
 
 # docker build --tag jjambot-crawler:1.0 .
-# docker run -it -d -v /host/path/data:/jjambot-crawler/data/ --name jjambot-crawler jjambot-crawler:1.0
+# docker run -it -d -v /host/path/data:/jjambot-crawler/data/:/jjambot-crawler/data/ -e TZ=Asia/Seoul --name jjambot-crawler jjambot-crawler:1.0
