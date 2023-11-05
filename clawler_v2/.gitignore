@@ -1,5 +1,5 @@
-.idea/
-__pycache__/
+clawler_v2/.idea/
+clawler_v2/__pycache__/
 
-data/
-test_code/
+clawler_v2/data/
+clawler_v2/test_code/
