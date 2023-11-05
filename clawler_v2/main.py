@@ -2,7 +2,9 @@ import requests
 import os
 from datetime import datetime
 import json
+
 from dotenv import load_dotenv
+from pymongo import MongoClient
 
 # 환경변수 로드
 load_dotenv()
@@ -34,8 +36,27 @@ def fetch_data(url):
     return response.json()
 
 
-def save_to_database(processed_data):
-    pass
+def save_to_mongoDB(processed_data):
+    # 환경변수에서 데이터베이스와 컬렉션 이름을 가져옴
+    db_name = os.getenv('MONGODB_DB_NAME')
+    collection_name = os.getenv('MONGODB_COLLECTION_NAME')
+
+    # MongoDB 클라이언트 생성
+    client = MongoClient(os.getenv('MONGODB_URI', 'mongodb://localhost:27017/'))
+
+    # 데이터베이스와 컬렉션 선택
+    db = client[db_name]
+    collection = db[collection_name]
+
+    # MongoDB에 데이터 삽입
+    # insert_many를 사용하여 모든 문서를 한 번에 삽입
+    result = collection.insert_many(processed_data)
+
+    # 성공적으로 삽입된 문서의 ID를 출력
+    print(f"Inserted document IDs: {result.inserted_ids}")
+
+    # 클라이언트 연결을 닫음
+    client.close()
 
 
 def main():
@@ -44,7 +65,7 @@ def main():
         data = fetch_data(url)
         processed_data = preprocess_data(data)
         print(json.dumps(processed_data, indent=2, default=str, ensure_ascii=False))
-        # save_to_database(processed_data)
+        save_to_mongoDB(processed_data)
 
     except requests.exceptions.RequestException as err:
         print(f"Network error occurred: {err}")
