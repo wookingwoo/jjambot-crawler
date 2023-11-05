@@ -1,8 +1,9 @@
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
 import re
+import traceback
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -43,9 +44,29 @@ def extract_menu_and_allergies(meal_info):
         return meal_info, []
 
 
-def create_meal_document(entry):
-    entry_date = datetime.strptime(entry['dates'], '%Y-%m-%d')
-    meal_document = {"date": entry_date, "meals": {}, "corps": "5322"}  # 부대명 추가
+def parse_date(date_string, format1='%Y-%m-%d', format2='%Y%m%d'):
+    try:
+        date_string = date_string.split("(")[0].strip()  # 요일 정보 제거 ex: 2023-11-05(일)
+        entry_date = datetime.strptime(date_string, format1)  # format1으로 파싱을 시도
+    except ValueError:
+        try:
+            # 실패하면 format2로 파싱을 시도
+            entry_date = datetime.strptime(date_string, format2)
+        except ValueError:
+            # 두 형식 모두 실패할 경우 None 반환
+            print(f"Unexpected date format: {date_string}")
+            return None
+
+    # ISO 한국 시간으로 설정
+    entry_date = entry_date.replace(tzinfo=timezone(timedelta(hours=9)))
+
+    return entry_date
+
+
+def create_meal_document(corps_code, entry):
+    entry_date = parse_date(entry['dates'])
+
+    meal_document = {"date": entry_date, "meals": {}, "corps": corps_code}  # 부대명 추가
     for meal_type in ["brst", "lunc", "dinr", "adspcfd"]:
         meal_info = entry.get(meal_type)
         if meal_info:
@@ -56,8 +77,8 @@ def create_meal_document(entry):
     return meal_document
 
 
-def preprocess_data(data):
-    return [create_meal_document(entry) for entry in data["DS_TB_MNDT_DATEBYMLSVC_5322"]["row"]]
+def preprocess_data(corps_code, corps_service, data):
+    return [create_meal_document(corps_code, entry) for entry in data[corps_service]["row"]]
 
 
 def fetch_data(url):
@@ -91,18 +112,42 @@ def save_to_mongoDB(processed_data):
 
 def main():
     try:
-        url = os.getenv('API_URL')
-        data = fetch_data(url)
-        processed_data = preprocess_data(data)
-        print(json.dumps(processed_data, indent=2, default=str, ensure_ascii=False))
-        save_to_mongoDB(processed_data)
+        HOST = os.getenv('HOST', 'https://openapi.mnd.go.kr')
+        API_KEY = os.getenv('API_KEY')
+        TYPE = os.getenv('TYPE', 'json')
+        START_INDEX = os.getenv('START_INDEX')
+        END_INDEX = os.getenv('END_INDEX')
+
+        service_dict = {}
+        corps = ["3lsc", "ATC", "1691", "2171", "3296", "3389", "5322", "6176", "6282", "6335", "7369", "8623", "8902",
+                 "9030"]
+
+        for i in corps:
+            if i == "3lsc":
+                service_dict["3lsc"] = 'DS_TB_MNDT_DATEBYMLSVC'
+            else:
+                service_dict[i] = "DS_TB_MNDT_DATEBYMLSVC_" + i
+
+        print("service: ", service_dict)
+
+        for corps_code, corps_service in service_dict.items():
+            print("corps_code: ", corps_code)
+            print("corps_service: ", corps_service)
+            url = f"{HOST}/{API_KEY}/{TYPE}/{corps_service}/{START_INDEX}/{END_INDEX}"
+
+            data = fetch_data(url)
+            processed_data = preprocess_data(corps_code, corps_service, data)
+            print(json.dumps(processed_data, indent=2, default=str, ensure_ascii=False))
+            save_to_mongoDB(processed_data)
 
     except requests.exceptions.RequestException as err:
         print(f"Network error occurred: {err}")
     except ValueError as ve:
         print(f"Data processing error occurred: {ve}")
+        print(traceback.format_exc())
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        print(traceback.format_exc())
 
 
 if __name__ == "__main__":
