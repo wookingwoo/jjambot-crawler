@@ -7,8 +7,7 @@ from dotenv import load_dotenv
 
 # from pymongo import MongoClient
 
-# 환경변수 로드
-load_dotenv()
+load_dotenv()  # 환경변수 로드
 
 
 # MongoDB 클라이언트 설정
@@ -53,7 +52,7 @@ def preprocess_data(data):
 
 
 def preprocess_by_mealtype(data):
-    # 날짜를 키로 하여 식사 데이터를 정리할 딕셔너리
+    # 날짜를 키로 하여 식사 데이터를 정리할 dictionary
     processed_data = {}
 
     for entry in data:
@@ -64,13 +63,13 @@ def preprocess_by_mealtype(data):
         if date_key not in processed_data:
             processed_data[date_key] = entry
             processed_data[date_key]['meals'] = {}
+            processed_data[date_key]['corps'] = "5322"  # 부대명
 
-        # 모든 식사에 대해 반복하며 총 칼로리를 계산
         for meal_type, meal_info in entry['meals'].items():
             processed_data[date_key]['meals'].setdefault(meal_type, [])
             processed_data[date_key]['meals'][meal_type].append(meal_info)
 
-    # 딕셔너리를 리스트로 변환하여 반환합니다.
+    # 딕셔너리를 리스트로 변환하여 반환
     return list(processed_data.values())
 
 
