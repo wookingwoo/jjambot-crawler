@@ -110,8 +110,26 @@ def save_to_mongoDB(processed_data):
     client.close()
 
 
+def slack_msg(msg):
+    SLACK_TOKEN = os.getenv('SLACK_TOKEN')
+    SLACK_CHANNEL = "#" + os.getenv('SLACK_CHANNEL', 'wookingwoo-bot-playground')
+
+    # now = datetime.now()
+    # text_msg =  f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
+
+    text_msg = msg
+
+    requests.post("https://slack.com/api/chat.postMessage",
+                  headers={"Authorization": "Bearer " + SLACK_TOKEN},
+                  data={"channel": SLACK_CHANNEL, "text": text_msg})
+
+    print("✉ [slack msg]: " + text_msg)
+
+
 def main():
     try:
+        slack_msg("🍚 짬봇 - 식단 수집을 시작합니다 🍚")
+
         HOST = os.getenv('HOST', 'https://openapi.mnd.go.kr')
         API_KEY = os.getenv('API_KEY')
         TYPE = os.getenv('TYPE', 'json')
