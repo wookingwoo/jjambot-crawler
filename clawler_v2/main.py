@@ -2,6 +2,7 @@ import requests
 import os
 from datetime import datetime
 import json
+import re
 
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -14,6 +15,34 @@ def convert_calories(calories_str):
     return float(calories_str.replace('kcal', '').strip()) if calories_str.endswith('kcal') else None
 
 
+def extract_menu_and_allergies(meal_info):
+    # 끝에 있는 괄호로 둘러싸인 숫자들을 찾기 위한 정규표현식 패턴
+    pattern = r'(.*?)(\(\d{2}\))+$'
+
+    # 정규표현식으로 문자열을 검색
+    match = re.search(pattern, meal_info)
+
+    if match:
+        # 첫 번째 그룹은 끝에 있는 괄호로 둘러싸인 숫자들을 제외한 모든 문자
+        menu = match.group(1).rstrip()
+        # 두 번째 그룹은 끝에 있는 괄호로 둘러싸인 숫자들의 연속된 부분
+        # 괄호로 둘러싸인 숫자들만 찾아 리스트로 변환
+        allergy_numbers = re.findall(r'\((\d{2})\)', match.group())
+
+        # 알러지 정보를 정수 리스트로 변환
+        allergy_numbers_int_list = []
+        for allergy_number in allergy_numbers:
+            try:
+                allergy_numbers_int_list.append(int(allergy_number))
+            except ValueError:
+                print(f"Failed to convert allergy numbers to integers: {allergy_numbers}")
+
+        return menu, allergy_numbers_int_list
+    else:
+        # 알러지 정보가 없는 경우, 전체 문자열이 메뉴 이름
+        return meal_info, []
+
+
 def create_meal_document(entry):
     entry_date = datetime.strptime(entry['dates'], '%Y-%m-%d')
     meal_document = {"date": entry_date, "meals": {}, "corps": "5322"}  # 부대명 추가
@@ -21,7 +50,8 @@ def create_meal_document(entry):
         meal_info = entry.get(meal_type)
         if meal_info:
             calories = convert_calories(entry.get(f"{meal_type}_cal", ""))
-            meal_document["meals"][meal_type] = {"menu": meal_info, "calories": calories}
+            menu, allergy_numbers = extract_menu_and_allergies(meal_info)
+            meal_document["meals"][meal_type] = {"menu": menu, "calories": calories, "allergy_numbers": allergy_numbers}
     meal_document["sum_calories"] = convert_calories(entry.get("sum_cal", ""))
     return meal_document
 
