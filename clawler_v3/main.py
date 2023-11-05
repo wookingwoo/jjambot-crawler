@@ -142,6 +142,14 @@ def save_to_mongoDB(processed_data):
 
     # 이미 저장된 데이터를 제외하고 새로운 데이터만 저장
     for entry in processed_data:
+
+        # OUTOFDATE 일 이전의 데이터는 검사하지 않음 (none이면 검사하지 않음)
+        OUTOFDATE = eval(os.getenv('OUTOFDATE', 90))
+
+        if OUTOFDATE is not None:
+            if entry["date"] < datetime.now(timezone(timedelta(hours=9))) - timedelta(days=OUTOFDATE):
+                continue
+
         # MongoDB에 저장된 데이터와 중복되는지 확인
         duplicate = collection.find_one({
             "date": entry["date"],
@@ -150,12 +158,21 @@ def save_to_mongoDB(processed_data):
             "corps_code": entry["corps_code"],
         })
 
+        # 중복되지 않는 경우, MongoDB에 데이터를 저장
+
         if duplicate is None:
-            # 중복되지 않는 경우, MongoDB에 데이터를 저장
+            # 날짜와 corps_code가 중복되는경우 해당 데이터 삭제
+            collection.delete_many({
+                "date": entry["date"],
+                "corps_code": entry["corps_code"],
+            })
+
+            # 새로운 데이터를 저장
             collection.insert_one(entry)
             print(f"✅ Successfully saved: {entry['date']}")
+
+        # 중복되는 경우, MongoDB에 저장하지 않음
         else:
-            # 중복되는 경우, MongoDB에 저장하지 않음
             print(f"🚫 Duplicated data: {entry['date']}")
 
     # 클라이언트 연결을 닫음
