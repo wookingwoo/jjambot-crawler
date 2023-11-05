@@ -63,22 +63,63 @@ def parse_date(date_string, format1='%Y-%m-%d', format2='%Y%m%d'):
     return entry_date
 
 
-def create_meal_document(corps_code, entry):
-    entry_date = parse_date(entry['dates'])
-
-    meal_document = {"date": entry_date, "meals": {}, "corps": corps_code}  # 부대명 추가
-    for meal_type in ["brst", "lunc", "dinr", "adspcfd"]:
-        meal_info = entry.get(meal_type)
-        if meal_info:
-            calories = convert_calories(entry.get(f"{meal_type}_cal", ""))
-            menu, allergy_numbers = extract_menu_and_allergies(meal_info)
-            meal_document["meals"][meal_type] = {"menu": menu, "calories": calories, "allergy_numbers": allergy_numbers}
-    meal_document["sum_calories"] = convert_calories(entry.get("sum_cal", ""))
-    return meal_document
-
-
 def preprocess_data(corps_code, corps_service, data):
-    return [create_meal_document(corps_code, entry) for entry in data[corps_service]["row"]]
+    processed_data = []
+
+    for entry in data[corps_service]["row"]:
+
+        entry_date = parse_date(entry['dates'])  # 날짜 객체로 변환
+
+        # 식사 데이터 문서 구조화
+        meal_document = {
+            "date": entry_date,
+            "meals": {}
+        }
+
+        # 각 식사 유형에 대한 데이터 처리
+        for meal_type in ["brst", "lunc", "dinr", "adspcfd"]:
+            meal_info = entry.get(meal_type)
+            if meal_info:  # 해당 식사 유형의 데이터가 있을 경우에만 처리
+                calories = entry.get(f"{meal_type}_cal", "")
+
+                menu, allergies = extract_menu_and_allergies(meal_info)
+                meal_document["meals"][meal_type] = {
+                    "menu": menu,
+                    "calories": float(calories.replace('kcal', '').strip()) if calories.endswith('kcal') else None,
+                    "allergies": allergies,
+                }
+
+        # 전체 칼로리
+        sum_calories = entry.get("sum_cal", "")
+        if sum_calories.endswith('kcal'):
+            meal_document["sum_calories"] = float(sum_calories.replace('kcal', '').strip())
+
+        processed_data.append(meal_document)
+
+    return processed_data
+
+
+def preprocess_by_mealtype(corps_code, corps_service, data):
+    # 날짜를 키로 하여 식사 데이터를 정리할 딕셔너리
+    processed_data = {}
+
+    for entry in data:
+        # 날짜를 파싱
+        date_key = entry['date']
+
+        if date_key not in processed_data:
+            processed_data[date_key] = entry
+            processed_data[date_key]['meals'] = {}
+            processed_data[date_key]['corps_code'] = corps_code
+            processed_data[date_key]['sum_calories'] = entry.get('sum_calories')
+
+        # 각 식사 유형에 대한 데이터 처리
+        for meal_type, meal_info in entry['meals'].items():
+            if processed_data[date_key]['meals'].get(meal_type) is None:
+                processed_data[date_key]['meals'][meal_type] = []
+            processed_data[date_key]['meals'][meal_type].append(meal_info)
+    # 딕셔너리를 리스트로 변환하여 반환합니다.
+    return list(processed_data.values())
 
 
 def fetch_data(url):
@@ -99,19 +140,70 @@ def save_to_mongoDB(processed_data):
     db = client[db_name]
     collection = db[collection_name]
 
-    # MongoDB에 데이터 삽입
-    # insert_many를 사용하여 모든 문서를 한 번에 삽입
-    result = collection.insert_many(processed_data)
+    # 이미 저장된 데이터를 제외하고 새로운 데이터만 저장
+    for entry in processed_data:
 
-    # 성공적으로 삽입된 문서의 ID를 출력
-    print(f"Inserted document IDs: {result.inserted_ids}")
+        # OUTOFDATE 일 이전의 데이터는 검사하지 않음 (none이면 검사하지 않음)
+        OUTOFDATE = eval(os.getenv('OUTOFDATE', 90))
+
+        if OUTOFDATE is not None:
+            if entry["date"] < datetime.now(timezone(timedelta(hours=9))) - timedelta(days=OUTOFDATE):
+                continue
+
+        # MongoDB에 저장된 데이터와 중복되는지 확인
+        duplicate = collection.find_one({
+            "date": entry["date"],
+            "meals": entry["meals"],
+            "sum_calories": entry["sum_calories"],
+            "corps_code": entry["corps_code"],
+        })
+
+        # 중복되지 않는 경우, MongoDB에 데이터를 저장
+
+        if duplicate is None:
+            # 날짜와 corps_code가 중복되는경우 해당 데이터 삭제
+            collection.delete_many({
+                "date": entry["date"],
+                "corps_code": entry["corps_code"],
+            })
+
+            # 새로운 데이터를 저장
+            collection.insert_one(entry)
+            print(f"✅ Successfully saved: {entry['date']}")
+
+        # 중복되는 경우, MongoDB에 저장하지 않음
+        else:
+            print(f"🚫 Duplicated data: {entry['date']}")
 
     # 클라이언트 연결을 닫음
     client.close()
 
 
+def slack_msg(msg):
+    SLACK_TOKEN = os.getenv('SLACK_TOKEN')
+    SLACK_CHANNEL = "#" + os.getenv('SLACK_CHANNEL', 'wookingwoo-bot-playground')
+
+    # now = datetime.now()
+    # text_msg =  f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
+
+    text_msg = msg
+
+    response = requests.post("https://slack.com/api/chat.postMessage",
+                             headers={"Authorization": "Bearer " + SLACK_TOKEN},
+                             data={"channel": SLACK_CHANNEL, "text": text_msg})
+
+    if response.status_code == 200:
+        print("✉ [slack msg]: " + text_msg)
+    else:
+        print("❌ Failed to send slack message")
+        print("✉ [slack msg]: " + text_msg)
+        print(response.json())
+
+
 def main():
     try:
+        slack_msg("🍚 짬봇 - 식단 수집을 시작합니다 🍚")
+
         HOST = os.getenv('HOST', 'https://openapi.mnd.go.kr')
         API_KEY = os.getenv('API_KEY')
         TYPE = os.getenv('TYPE', 'json')
@@ -137,6 +229,7 @@ def main():
 
             data = fetch_data(url)
             processed_data = preprocess_data(corps_code, corps_service, data)
+            processed_data = preprocess_by_mealtype(corps_code, corps_service, processed_data)
             print(json.dumps(processed_data, indent=2, default=str, ensure_ascii=False))
             save_to_mongoDB(processed_data)
 
