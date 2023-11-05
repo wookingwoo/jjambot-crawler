@@ -119,11 +119,16 @@ def slack_msg(msg):
 
     text_msg = msg
 
-    requests.post("https://slack.com/api/chat.postMessage",
-                  headers={"Authorization": "Bearer " + SLACK_TOKEN},
-                  data={"channel": SLACK_CHANNEL, "text": text_msg})
+    response = requests.post("https://slack.com/api/chat.postMessage",
+                             headers={"Authorization": "Bearer " + SLACK_TOKEN},
+                             data={"channel": SLACK_CHANNEL, "text": text_msg})
 
-    print("✉ [slack msg]: " + text_msg)
+    if response.status_code == 200:
+        print("✉ [slack msg]: " + text_msg)
+    else:
+        print("❌ Failed to send slack message")
+        print("✉ [slack msg]: " + text_msg)
+        print(response.json())
 
 
 def main():
