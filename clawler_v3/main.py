@@ -63,22 +63,62 @@ def parse_date(date_string, format1='%Y-%m-%d', format2='%Y%m%d'):
     return entry_date
 
 
-def create_meal_document(corps_code, entry):
-    entry_date = parse_date(entry['dates'])
-
-    meal_document = {"date": entry_date, "meals": {}, "corps": corps_code}  # 부대명 추가
-    for meal_type in ["brst", "lunc", "dinr", "adspcfd"]:
-        meal_info = entry.get(meal_type)
-        if meal_info:
-            calories = convert_calories(entry.get(f"{meal_type}_cal", ""))
-            menu, allergy_numbers = extract_menu_and_allergies(meal_info)
-            meal_document["meals"][meal_type] = {"menu": menu, "calories": calories, "allergy_numbers": allergy_numbers}
-    meal_document["sum_calories"] = convert_calories(entry.get("sum_cal", ""))
-    return meal_document
-
-
 def preprocess_data(corps_code, corps_service, data):
-    return [create_meal_document(corps_code, entry) for entry in data[corps_service]["row"]]
+    processed_data = []
+
+    for entry in data[corps_service]["row"]:
+
+        entry_date = parse_date(entry['dates'])  # 날짜 객체로 변환
+
+        # 식사 데이터 문서 구조화
+        meal_document = {
+            "date": entry_date,
+            "meals": {}
+        }
+
+        # 각 식사 유형에 대한 데이터 처리
+        for meal_type in ["brst", "lunc", "dinr", "adspcfd"]:
+            meal_info = entry.get(meal_type)
+            if meal_info:  # 해당 식사 유형의 데이터가 있을 경우에만 처리
+                calories = entry.get(f"{meal_type}_cal", "")
+
+                menu, allergies = extract_menu_and_allergies(meal_info)
+                meal_document["meals"][meal_type] = {
+                    "menu": menu,
+                    "calories": float(calories.replace('kcal', '').strip()) if calories.endswith('kcal') else None,
+                    "allergies": allergies,
+                }
+
+        # 전체 칼로리
+        sum_calories = entry.get("sum_cal", "")
+        if sum_calories.endswith('kcal'):
+            meal_document["sum_calories"] = float(sum_calories.replace('kcal', '').strip())
+
+        processed_data.append(meal_document)
+
+    return processed_data
+
+
+def preprocess_by_mealtype(corps_code, corps_service, data):
+    # 날짜를 키로 하여 식사 데이터를 정리할 딕셔너리
+    processed_data = {}
+
+    for entry in data:
+        # 날짜를 파싱
+        date_key = entry['date']
+
+        if date_key not in processed_data:
+            processed_data[date_key] = entry
+            processed_data[date_key]['meals'] = {}
+
+        # 각 식사 유형에 대한 데이터 처리
+        for meal_type, meal_info in entry['meals'].items():
+            if processed_data[date_key]['meals'].get(meal_type) is None:
+                processed_data[date_key]['meals'][meal_type] = []
+            processed_data[date_key]['meals'][meal_type].append(meal_info)
+
+    # 딕셔너리를 리스트로 변환하여 반환합니다.
+    return list(processed_data.values())
 
 
 def fetch_data(url):
@@ -160,6 +200,7 @@ def main():
 
             data = fetch_data(url)
             processed_data = preprocess_data(corps_code, corps_service, data)
+            processed_data = preprocess_by_mealtype(corps_code, corps_service, processed_data)
             print(json.dumps(processed_data, indent=2, default=str, ensure_ascii=False))
             save_to_mongoDB(processed_data)
 
