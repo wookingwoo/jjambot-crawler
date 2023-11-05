@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 import time
 
-from data.mnd_api_key import corps, api_url
+from clawler_v2.data.mnd_api_key import corps, api_url
 from write_log import write_all_log
 
 

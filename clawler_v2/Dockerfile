@@ -10,12 +10,12 @@ RUN mkdir /jjambot-crawler
 WORKDIR /jjambot-crawler
 
 # Install jjambot-crawler dependencies using file requirements.txt
-COPY ./requirements.txt .
+COPY requirements.txt .
 RUN pip install --upgrade pip # pip 업그레이드
 RUN pip install -r requirements.txt # 패키지 설치
 
 # Copy namsigdnag-crawler codes
-COPY . /jjambot-crawler
+COPY .. /jjambot-crawler
 
 # 실행
 CMD ["python", "main.py"]

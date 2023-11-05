@@ -2,7 +2,7 @@ import os
 import requests
 import datetime
 
-from data.slack_bot import token, channel
+from clawler_v2.data.slack_bot import token, channel
 
 
 def slack_msg(msg):

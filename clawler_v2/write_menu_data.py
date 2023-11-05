@@ -9,19 +9,19 @@ def writeAllCorpsMenu_TXT(dic_parsing_menu):
     import datetime
 
     # 경로가 존재하지 않으면 새로 생성
-    check_dir("./data")
-    check_dir("./data/crawling_data")
+    check_dir("data")
+    check_dir("data/crawling_data")
 
     # 파일이 존재하지 않을 경우 빈 파일 생성
-    if not os.path.exists("./data/crawling_data/allCorpsMenu.txt"):
+    if not os.path.exists("data/crawling_data/allCorpsMenu.txt"):
         blank_dic = {}
-        f = open("./data/crawling_data/allCorpsMenu.txt", 'w')
+        f = open("data/crawling_data/allCorpsMenu.txt", 'w')
         f.write(str(blank_dic))
         f.close()
         print("./data/crawling_data/allCorpsMenu.txt" + "파일이 없어 새로 생성합니다.")
 
     # 기존 메뉴 불러오기
-    f = open("./data/crawling_data/allCorpsMenu.txt", 'r')
+    f = open("data/crawling_data/allCorpsMenu.txt", 'r')
     dic_all_menu_file = eval(f.read())
     f.close()
 
@@ -31,7 +31,7 @@ def writeAllCorpsMenu_TXT(dic_parsing_menu):
     # 크롤링한 메뉴를 기존 메뉴에 추가해 새로 파일 쓰기
     dic_all_menu_file.update(dic_parsing_menu)
     print("크롤링한 데이터를 업데이트 했습니다.")
-    f = open("./data/crawling_data/allCorpsMenu.txt", 'w')
+    f = open("data/crawling_data/allCorpsMenu.txt", 'w')
     f.write(str(dic_all_menu_file))
     f.close()
     print("./data/crawling_data/allCorpsMenu.txt에 파일 쓰기 완료.")
@@ -49,11 +49,11 @@ def writeAllCorpsMenu_TXT(dic_parsing_menu):
         print("********************************************\n")
 
         # 경로가 존재하지 않으면 새로 생성
-        if not os.path.isdir("./data/log_data"):
-            os.mkdir("./data/log_data")
+        if not os.path.isdir("data/log_data"):
+            os.mkdir("data/log_data")
             print("./data/log_data" + " 경로가 없어 새로 생성 했습니다.")
 
-        file_change_DB_log = open("./data/log_data/change_log.txt", 'a')
+        file_change_DB_log = open("data/log_data/change_log.txt", 'a')
         file_change_DB_log.writelines(str(datetime.datetime.now()) + ": " + "기존 DB가 새롭게 변경되었습니다." + "\n")
         file_change_DB_log.writelines(keys + "\n")
         # file_change_DB_log.writelines(values + "\n" + "\n")
@@ -80,7 +80,7 @@ def writeMenuAsDate_TXT(dic):
     for y in sorted(dic):
 
         for z in sorted(dic[y]):
-            path_classify_dir = './data/crawling_data/sort_menuData'
+            path_classify_dir = 'data/crawling_data/sort_menuData'
             path_classify_corps = './data/crawling_data/sort_menuData/{}'.format(y)
             path_classify_dir_year = './data/crawling_data/sort_menuData/{}/year_{}'.format(y, z[0:4])
             path_classify_dir_month = './data/crawling_data/sort_menuData/{}/year_{}/month_{}'.format(y, z[0:4], z[4:6])
@@ -127,7 +127,7 @@ def writeMenuAsDate_TXT(dic):
 if __name__ == "__main__":
     # dic = {"test": "test_value"}
 
-    f = open("./data/crawling_data/allCorpsMenu.txt", 'r')
+    f = open("data/crawling_data/allCorpsMenu.txt", 'r')
     data = f.read()
     f.close()
     dic = eval(data)
