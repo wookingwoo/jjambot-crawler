@@ -110,13 +110,14 @@ def preprocess_by_mealtype(corps_code, corps_service, data):
         if date_key not in processed_data:
             processed_data[date_key] = entry
             processed_data[date_key]['meals'] = {}
+            processed_data[date_key]['corps_code'] = corps_code
+            processed_data[date_key]['sum_calories'] = entry.get('sum_calories')
 
         # 각 식사 유형에 대한 데이터 처리
         for meal_type, meal_info in entry['meals'].items():
             if processed_data[date_key]['meals'].get(meal_type) is None:
                 processed_data[date_key]['meals'][meal_type] = []
             processed_data[date_key]['meals'][meal_type].append(meal_info)
-
     # 딕셔너리를 리스트로 변환하여 반환합니다.
     return list(processed_data.values())
 
@@ -139,12 +140,23 @@ def save_to_mongoDB(processed_data):
     db = client[db_name]
     collection = db[collection_name]
 
-    # MongoDB에 데이터 삽입
-    # insert_many를 사용하여 모든 문서를 한 번에 삽입
-    result = collection.insert_many(processed_data)
+    # 이미 저장된 데이터를 제외하고 새로운 데이터만 저장
+    for entry in processed_data:
+        # MongoDB에 저장된 데이터와 중복되는지 확인
+        duplicate = collection.find_one({
+            "date": entry["date"],
+            "meals": entry["meals"],
+            "sum_calories": entry["sum_calories"],
+            "corps_code": entry["corps_code"],
+        })
 
-    # 성공적으로 삽입된 문서의 ID를 출력
-    print(f"Inserted document IDs: {result.inserted_ids}")
+        if duplicate is None:
+            # 중복되지 않는 경우, MongoDB에 데이터를 저장
+            collection.insert_one(entry)
+            print(f"✅ Successfully saved: {entry['date']}")
+        else:
+            # 중복되는 경우, MongoDB에 저장하지 않음
+            print(f"🚫 Duplicated data: {entry['date']}")
 
     # 클라이언트 연결을 닫음
     client.close()
