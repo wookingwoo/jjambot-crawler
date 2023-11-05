@@ -1,5 +1,5 @@
-.idea/
-__pycache__/
+./.idea/
+./__pycache__/
 
-data/
-test_code/
+./data/
+./test_code/
